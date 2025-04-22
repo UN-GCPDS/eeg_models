@@ -2,7 +2,7 @@ import numpy as np
 from typing import Sequence, Tuple
 from scipy.signal import resample
 
-def load_GIGA_MI_ME(db: GIGA_MI_ME,
+def load_GIGA_MI_ME(db,
               sbj: int,
               eeg_ch_names: Sequence[str],
               fs: float, 
