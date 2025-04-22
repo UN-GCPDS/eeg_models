@@ -27,8 +27,32 @@ def load_GIGA_MI_ME(db,
     
   return X, y
 
+def load_BCICIV2a(db,
+               sbj: int,
+               mode: str,
+               fs: float, 
+               f_bank: np.ndarray, 
+               vwt: np.ndarray, 
+               new_fs: float) -> np.ndarray:
 
-  #######################
+  tf_repr = TimeFrequencyRpr(sfreq = fs, f_bank = f_bank, vwt = vwt)
+
+  db.load_subject(sbj, mode = mode)
+  X, y = db.get_data() #Load all classes, all channels {EEG, EOG}, reject bad trials
+  X = X[:,:-3,:] # pick EEG channels
+  X = X*1e6 #uV
+  X = np.squeeze(tf_repr.transform(X))
+  #Resampling
+  if new_fs == fs:
+    print('No resampling, since new sampling rate same.')
+  else:
+    print("Resampling from {:f} to {:f} Hz.".format(fs, new_fs))
+    X = resample(X, int((X.shape[-1]/fs)*new_fs), axis = -1)
+    
+  return X, y
+
+
+#######################
 
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.backend import clear_session
