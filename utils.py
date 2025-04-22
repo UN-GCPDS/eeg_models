@@ -81,7 +81,7 @@ from sklearn.metrics import (
 )
 
 
-def train(db_name, load_args, cv_args, model_args, compile_args, fit_args, seed):
+def train(model, db_name, load_args, cv_args, model_args, compile_args, fit_args, seed):
     X_train, y_train = load_DB(db_name, **load_args)
     X_train = X_train[..., np.newaxis]
     
