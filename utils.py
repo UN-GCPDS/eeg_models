@@ -51,6 +51,21 @@ def load_BCICIV2a(db,
     
   return X, y
 
+def load_DB(db_name, **load_args):
+  if db_name == 'BCICIV2a':
+    X_train, y_train = load_BCICIV2a(**load_args, mode = 'training')
+    X_test, y_test = load_BCICIV2a(**load_args, mode = 'evaluation')
+
+    X_train = np.concatenate([X_train, X_test], axis = 0)
+    y_train = np.concatenate([y_train, y_test], axis = 0)
+
+  elif db_name == 'GIGA_MI_ME':
+    X_train, y_train = load_GIGA_MI_ME(**load_args)
+
+  else:
+    raise ValueError('No valid database name')
+
+  return X_train, y_train
 
 #######################
 
