@@ -63,7 +63,7 @@ class GFC(Layer):
         return A
 
     def compute_output_shape(self, batch_input_shape):
-        N, C, T, F = batch_input_shape.as_list()
+        N, C, T, F = batch_input_shape
         return tf.TensorShape([N, F, C, C])
 
     def get_config(self):
