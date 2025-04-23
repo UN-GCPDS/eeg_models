@@ -85,6 +85,7 @@ from sklearn.metrics import (
 def train(model, db_name, tf_repr, load_args, cv_args, model_args, compile_args, fit_args, seed):
     X_train, y_train = load_DB(db_name, **load_args)
     X_train = X_train[..., np.newaxis]
+    print(X_train.shape)
     
     cv_results = {'params': [],
                   'mean_acc': np.zeros(cv_args['cv'].get_n_splits()),
