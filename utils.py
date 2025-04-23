@@ -8,11 +8,11 @@ def load_GIGA_MI_ME(db,
               fs: float, 
               f_bank: np.ndarray, 
               vwt: np.ndarray, 
-              new_fs: float) -> Tuple[np.ndarray, np.ndarray]:
+              new_fs: float, tf_repr) -> Tuple[np.ndarray, np.ndarray]:
 
   index_eeg_chs = db.format_channels_selectors(channels = eeg_ch_names) - 1
 
-  tf_repr = TimeFrequencyRpr(sfreq = fs, f_bank = f_bank, vwt = vwt)
+  # tf_repr = TimeFrequencyRpr(sfreq = fs, f_bank = f_bank, vwt = vwt)
 
   db.load_subject(sbj)
   X, y = db.get_data(classes = ['left hand mi', 'right hand mi']) #Load MI classes, all channels {EEG}, reject bad trials, uV
@@ -81,7 +81,7 @@ from sklearn.metrics import (
 )
 
 
-def train(model, db_name, load_args, cv_args, model_args, compile_args, fit_args, seed):
+def train(model, db_name, tf_repr, load_args, cv_args, model_args, compile_args, fit_args, seed):
     X_train, y_train = load_DB(db_name, **load_args)
     X_train = X_train[..., np.newaxis]
     
