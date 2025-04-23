@@ -90,7 +90,7 @@ class get_triu(Layer):
         return triu
 
     def compute_output_shape(self, batch_input_shape):
-        N, F, C, C = batch_input_shape.as_list()
+        N, F, C, C = batch_input_shape
         return tf.TensorShape([N, F, int(C*(C-1)/2),1])
 
     def get_config(self):
