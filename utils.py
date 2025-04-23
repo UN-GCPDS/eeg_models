@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Sequence, Tuple
 from scipy.signal import resample
+from tensorflow.random import set_seed
 
 def load_GIGA_MI_ME(db,
               sbj: int,
