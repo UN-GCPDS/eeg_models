@@ -120,8 +120,8 @@ def train(model, db_name, tf_repr, load_args, cv_args, model_args, compile_args,
       clear_session()
       set_seed(seed)
 
-      model_cll, model_params = get_model(model_args['model_name'], model_args['nb_classes'])
-      model = model_cll(**model_params, Chans = C, Samples = T)
+      # model_cll, model_params = get_model(model_args['model_name'], model_args['nb_classes'])
+      # model = model_cll(**model_params, Chans = C, Samples = T)
       model.compile(loss = compile_args['loss'], 
                     optimizer = Adam(compile_args['init_lr']))
       
