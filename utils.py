@@ -9,7 +9,8 @@ def load_GIGA_MI_ME(db,
               fs: float, 
               f_bank: np.ndarray, 
               vwt: np.ndarray, 
-              new_fs: float, tf_repr) -> Tuple[np.ndarray, np.ndarray]:
+              new_fs: float, 
+              tf_repr) -> Tuple[np.ndarray, np.ndarray]:
 
   index_eeg_chs = db.format_channels_selectors(channels = eeg_ch_names) - 1
 
@@ -81,11 +82,10 @@ from sklearn.metrics import (
     precision_score
 )
 
-
 def train(model, db_name, tf_repr, load_args, cv_args, model_args, compile_args, fit_args, seed):
-    X_train, y_train = load_DB(db_name, **load_args)
+    X_train, y_train = load_GIGA_MI_ME(**load_args)
     X_train = X_train[..., np.newaxis]
-    print(X_train.shape)
+    # print(X_train.shape, y_train.shape)
     
     cv_results = {'params': [],
                   'mean_acc': np.zeros(cv_args['cv'].get_n_splits()),
@@ -111,7 +111,7 @@ def train(model, db_name, tf_repr, load_args, cv_args, model_args, compile_args,
     for train_index, val_index in cv_args['cv'].split(X_train, y_train):
       X, X_val = X_train[train_index], X_train[val_index]
       y, y_val = y_train[train_index], y_train[val_index]
-      print(val_index)
+      # print(val_index)
 
       if model_args['autoencoder']:
         y = [X, y]
@@ -166,7 +166,7 @@ def train(model, db_name, tf_repr, load_args, cv_args, model_args, compile_args,
                                                        
       if cv_results['mean_acc'][k]  > max_acc:
         max_acc = cv_results['mean_acc'][k]
-        model.save_weights('sbj' + str(load_args['sbj']) +'.h5')
+        # model.save_weights('sbj' + str(load_args['sbj']) +'.h5')
 
       k += 1
                                                 
