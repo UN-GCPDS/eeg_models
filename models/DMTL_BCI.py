@@ -43,5 +43,5 @@ def DMTL_BCI(nb_classes, Chans = 22, Samples = 250, dropoutRate = 0.5, l1 = 0, l
                                  input_shape=(Chans, Samples, 1),kernel_regularizer=l1_l2(l1=l1,l2=l2),
                                  kernel_constraint = max_norm(2., axis=(0,1,2)))(block2)
     
-    return Model(inputs=input_main, outputs=[block2,softmax])
+    return Model(inputs=input_main, outputs=softmax)
 
