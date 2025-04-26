@@ -98,50 +98,54 @@ class get_triu(Layer):
         return {**base_config}
     
     
-def GFC_reg_renyi(nb_classes: int,
-          Chans: int,
-          Samples: int,
-          l1: int = 0, 
-          l2: int = 0, 
-          dropoutRate: float = 0.5,
-          filters: int = 1, 
-          maxnorm: float = 2.0,
-          maxnorm_last_layer: float = 0.5,
-          kernel_time_1: int = 20,
-          strid_filter_time_1: int = 1,
-          bias_spatial: bool = False,
-          alpha: float = 1) -> Model:
+class GFC(Layer):
+    def __init__(self, alpha, **kwargs):
+        self.alpha = alpha
+        super().__init__(**kwargs)
 
+    def build(self, batch_input_shape):
+        # Inicializar gammad con un pequeño valor positivo
+        initializer = tf.keras.initializers.Constant(0.1)
+        self.gammad = self.add_weight(name='gammad',
+                                      shape=(),
+                                      initializer=initializer,
+                                      trainable=True)
+        super().build(batch_input_shape)
 
-    input_main   = Input((Chans, Samples, 1),name='Input')                    
-    
-    block        = Conv2D(filters,(1,kernel_time_1),strides=(1,strid_filter_time_1),
-                            use_bias=bias_spatial,
-                            kernel_constraint = max_norm(maxnorm, axis=(0,1,2))
-                            )(input_main)
-    
-    block        = BatchNormalization(epsilon=1e-05, momentum=0.1)(block)
+    def call(self, X): 
+        X = tf.transpose(X, perm=(0, 3, 1, 2))  # (N, F, C, T)
+        R = tf.reduce_sum(tf.math.multiply(X, X), axis=-1, keepdims=True)  # (N, F, C, 1)
+        D = R - 2 * tf.matmul(X, X, transpose_b=True) + tf.transpose(R, perm=(0, 1, 3, 2))  # (N, F, C, C)
 
-    block        = Activation('elu')(block)      
-    
-    block        = GFC(alpha=alpha)(block)
+        ones = tf.ones_like(D[0, 0, ...])  # (C, C)
+        mask_a = tf.linalg.band_part(ones, 0, -1)  # upper triangular
+        mask_b = tf.linalg.band_part(ones, 0, 0)   # diagonal
+        mask = tf.cast(mask_a - mask_b, dtype=tf.bool)  # bool mask
+        triu = tf.expand_dims(tf.boolean_mask(D, mask, axis=2), axis=-1)  # (N, F, C*(C-1)/2, 1)
 
-    block        = get_triu()(block)
+        # Proteger sigma para que nunca sea 0
+        sigma = tfp.stats.percentile(tf.math.sqrt(tf.maximum(triu, 1e-12)), 50, axis=2, keepdims=True)  # (N, F, 1, 1)
+        sigma = tf.clip_by_value(sigma, 1e-6, 1e6)  # Clip a un rango razonable
 
-    block        = AveragePooling2D(pool_size=(block.shape[1],1),strides=(1,1))(block)
-    
-    block        = BatchNormalization(epsilon=1e-05, momentum=0.1)(block)
+        # Proteger divisor
+        divisor = tf.pow(10., self.gammad)
+        divisor = tf.clip_by_value(divisor, 1e-6, 1e6)  # Evitar divisiones peligrosas
 
-    block        = Activation('elu')(block) 
-    
-    block        = Flatten()(block)    
+        A = tf.math.exp(-1 / (2 * divisor * tf.math.square(sigma)) * D)  # (N, F, C, C)
+        A.set_shape(D.shape)
 
-    block        = Dropout(dropoutRate)(block) 
+        # Protección extra contra NaNs en renyi entropy
+        entropy = renyis_entropy_2(A)
+        entropy = tf.where(tf.math.is_finite(entropy), entropy, tf.zeros_like(entropy))
 
-    block        = Dense(nb_classes, kernel_regularizer=L1L2(l1=l1,l2=l2),name='logits',
-                              kernel_constraint = max_norm(maxnorm_last_layer)
-                              )(block)
+        self.add_loss(-self.alpha * tf.reduce_mean(entropy))
 
-    softmax      = Activation('softmax',name='output')(block)
-    
-    return Model(inputs=input_main, outputs=softmax)    
+        return A
+
+    def compute_output_shape(self, batch_input_shape):
+        N, C, T, F = batch_input_shape
+        return tf.TensorShape([N, F, C, C])
+
+    def get_config(self):
+        base_config = super().get_config()
+        return {**base_config}
