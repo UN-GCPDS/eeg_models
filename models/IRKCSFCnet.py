@@ -32,44 +32,34 @@ class GFC(Layer):
     def __init__(self, alpha, **kwargs):
         self.alpha = alpha
         super().__init__(**kwargs)
+        
 
     def build(self, batch_input_shape):
-        # Inicializar gammad con un pequeño valor positivo
-        initializer = tf.keras.initializers.Constant(0.1)
-        self.gammad = self.add_weight(name='gammad',
-                                      shape=(),
-                                      initializer=initializer,
-                                      trainable=True)
+        self.gammad = self.add_weight(name = 'gammad',
+                                shape = (),
+                                initializer = 'zeros',
+                                trainable = True)
         super().build(batch_input_shape)
 
     def call(self, X): 
-        X = tf.transpose(X, perm=(0, 3, 1, 2))  # (N, F, C, T)
-        R = tf.reduce_sum(tf.math.multiply(X, X), axis=-1, keepdims=True)  # (N, F, C, 1)
-        D = R - 2 * tf.matmul(X, X, transpose_b=True) + tf.transpose(R, perm=(0, 1, 3, 2))  # (N, F, C, C)
+        X = tf.transpose(X, perm  = (0, 3, 1, 2)) #(N, F, C, T)
+        R = tf.reduce_sum(tf.math.multiply(X, X), axis = -1, keepdims = True) #(N, F, C, 1)
+        D  = R - 2*tf.matmul(X, X, transpose_b = True) + tf.transpose(R, perm = (0, 1, 3, 2)) #(N, F, C, C)
 
-        ones = tf.ones_like(D[0, 0, ...])  # (C, C)
-        mask_a = tf.linalg.band_part(ones, 0, -1)  # upper triangular
-        mask_b = tf.linalg.band_part(ones, 0, 0)   # diagonal
-        mask = tf.cast(mask_a - mask_b, dtype=tf.bool)  # bool mask
-        triu = tf.expand_dims(tf.boolean_mask(D, mask, axis=2), axis=-1)  # (N, F, C*(C-1)/2, 1)
+        ones = tf.ones_like(D[0,0,...]) #(C, C)
+        mask_a = tf.linalg.band_part(ones, 0, -1) #Upper triangular matrix of 0s and 1s (C, C)
+        mask_b = tf.linalg.band_part(ones, 0, 0)  #Diagonal matrix of 0s and 1s (C, C)
+        mask = tf.cast(mask_a - mask_b, dtype=tf.bool) #Make a bool mask (C, C)
+        triu = tf.expand_dims(tf.boolean_mask(D, mask, axis = 2), axis = -1) #(N, F, C*(C-1)/2, 1)
+        sigma = tfp.stats.percentile(tf.math.sqrt(triu), 50, axis = 2, keepdims = True) #(N, F, 1, 1)
 
-        # Proteger sigma para que nunca sea 0
-        sigma = tfp.stats.percentile(tf.math.sqrt(tf.maximum(triu, 1e-12)), 50, axis=2, keepdims=True)  # (N, F, 1, 1)
-        sigma = tf.clip_by_value(sigma, 1e-6, 1e6)  # Clip a un rango razonable
-
-        # Proteger divisor
-        divisor = tf.pow(10., self.gammad)
-        divisor = tf.clip_by_value(divisor, 1e-6, 1e6)  # Evitar divisiones peligrosas
-
-        A = tf.math.exp(-1 / (2 * divisor * tf.math.square(sigma)) * D)  # (N, F, C, C)
+        A = tf.math.exp(-1/(2*tf.pow(10., self.gammad)*tf.math.square(sigma))*D) #(N, F, C, C)
         A.set_shape(D.shape)
-
-        # Protección extra contra NaNs en renyi entropy
-        entropy = renyis_entropy_2(A)
-        entropy = tf.where(tf.math.is_finite(entropy), entropy, tf.zeros_like(entropy))
-
-        self.add_loss(-self.alpha * tf.reduce_mean(entropy))
-
+        self.add_loss(-self.alpha*tf.reduce_mean(renyis_entropy_2(A)))
+        #self.add_loss(-self.alpha*tf.reduce_sum(renyis_entropy_2(A))) # reduce sum
+#         self.add_loss(self.alpha*renyis_entropy_2(A))
+#         self.add_loss(self.alpha*renyis_entropy_2(A))
+#         self.add_loss(self.alpha*renyis_entropy_2(A))
         return A
 
     def compute_output_shape(self, batch_input_shape):
@@ -79,7 +69,6 @@ class GFC(Layer):
     def get_config(self):
         base_config = super().get_config()
         return {**base_config}
-
 
 
 class get_triu(Layer):
@@ -101,7 +90,7 @@ class get_triu(Layer):
         return triu
 
     def compute_output_shape(self, batch_input_shape):
-        N, F, C, C = batch_input_shape.as_list()
+        N, F, C, C = batch_input_shape
         return tf.TensorShape([N, F, int(C*(C-1)/2),1])
 
     def get_config(self):
